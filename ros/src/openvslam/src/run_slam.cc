@@ -6,19 +6,25 @@
 
 #include <openvslam/system.h>
 #include <openvslam/config.h>
-
+#include <typeinfo>
 #include <iostream>
 #include <chrono>
 #include <numeric>
-
 #include <ros/ros.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
-
+#include "std_msgs/String.h"
+#include <eigen_conversions/eigen_msg.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Quaternion.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <spdlog/spdlog.h>
 #include <popl.hpp>
+#include "../include/run_slam.h"
 
 #ifdef USE_STACK_TRACE_LOGGER
 #include <glog/logging.h>
@@ -27,7 +33,35 @@
 #ifdef USE_GOOGLE_PERFTOOLS
 #include <gperftools/profiler.h>
 #endif
+/*
+void PoseGen::generate_pose_msg(openvslam::Mat44_t& raw_matrix, std_msgs::Header& header, geometry_msgs::PoseStamped& out){
+    
+    // Positional (Point)
+    out.pose.position.x = raw_matrix(0,0);
+    out.pose.position.y = raw_matrix(0,1);
+    out.pose.position.z = raw_matrix(0,2);
 
+    // Orientation (Quaternion)
+    openvslam::Mat33_t rotation_matrix;
+    for(int row=0; row<3; row++){
+        for(int col=0; col<3; col++){
+            rotation_matrix(row,col) = raw_matrix(row,col);
+        }
+    }
+    openvslam::Quat_t temp_quaternion(rotation_matrix);
+    out.pose.orientation.x = temp_quaternion.x();
+    out.pose.orientation.y = temp_quaternion.y();
+    out.pose.orientation.z = temp_quaternion.z();
+    out.pose.orientation.w = temp_quaternion.w();
+    if(out.pose.orientation.w < 0){
+        out.pose.orientation.x *= -1; 
+        out.pose.orientation.y *= -1;
+        out.pose.orientation.z *= -1;
+        out.pose.orientation.w *= -1;
+    }
+    out.header = header;
+}
+*/
 void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::string& vocab_file_path,
                    const std::string& mask_img_path, const bool eval_log, const std::string& map_db_path) {
     // load the mask image
@@ -49,23 +83,44 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
     std::vector<double> track_times;
     const auto tp_0 = std::chrono::steady_clock::now();
 
+    // Header message properties
+    std_msgs::Header header; 
+    auto current_time = std::chrono::high_resolution_clock::now().time_since_epoch(); 
+    header.seq = 0;                        // Start Sequence 
+    header.stamp.sec = 0;                // Start Seconds
+    header.stamp.nsec = 0;              // Start nano seconds
+    header.frame_id = "/camera_pose";
     // initialize this node
-    const ros::NodeHandle nh;
-    image_transport::ImageTransport it(nh);
+    ros::NodeHandle nh;
 
+    // Publisher
+    ros::Publisher pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("/camera_pose", 5);
+
+    image_transport::ImageTransport it(nh);
     // run the SLAM as subscriber
     image_transport::Subscriber sub = it.subscribe("camera/image_raw", 1, [&](const sensor_msgs::ImageConstPtr& msg) {
         const auto tp_1 = std::chrono::steady_clock::now();
         const auto timestamp = std::chrono::duration_cast<std::chrono::duration<double>>(tp_1 - tp_0).count();
 
         // input the current frame and estimate the camera pose
-        SLAM.feed_monocular_frame(cv_bridge::toCvShare(msg, "bgr8")->image, timestamp, mask);
+        auto pose = SLAM.feed_monocular_frame(cv_bridge::toCvShare(msg, "bgr8")->image, timestamp, mask);
+        // std::cout << pose << std::endl;
+        geometry_msgs::PoseStamped pose_msg;
+        auto now = std::chrono::high_resolution_clock::now().time_since_epoch(); 
+        header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(now-current_time).count();
+        header.stamp.nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(now-current_time).count();
+        PoseGen::generate_pose_msg(pose, header, pose_msg);
+        pose_publisher.publish(pose_msg);
+        header.seq++;
+
+
 
         const auto tp_2 = std::chrono::steady_clock::now();
-
         const auto track_time = std::chrono::duration_cast<std::chrono::duration<double>>(tp_2 - tp_1).count();
         track_times.push_back(track_time);
     });
+
+
 
     // run the viewer in another thread
 #ifdef USE_PANGOLIN_VIEWER
@@ -132,6 +187,9 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
         std::cout << "mean tracking time: " << total_track_time / track_times.size() << "[s]" << std::endl;
     }
 }
+
+
+    
 
 int main(int argc, char* argv[]) {
 #ifdef USE_STACK_TRACE_LOGGER
