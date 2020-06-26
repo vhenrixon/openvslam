@@ -39,3 +39,8 @@ cmake-build-release/
 *.exe
 *.out
 *.app
+ros/build/
+room_vid/
+ros/devel
+ros/src/cv_bridge/
+ros/src/ros_writing_node/
