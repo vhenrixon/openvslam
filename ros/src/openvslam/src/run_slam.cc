@@ -33,35 +33,7 @@
 #ifdef USE_GOOGLE_PERFTOOLS
 #include <gperftools/profiler.h>
 #endif
-/*
-void PoseGen::generate_pose_msg(openvslam::Mat44_t& raw_matrix, std_msgs::Header& header, geometry_msgs::PoseStamped& out){
-    
-    // Positional (Point)
-    out.pose.position.x = raw_matrix(0,0);
-    out.pose.position.y = raw_matrix(0,1);
-    out.pose.position.z = raw_matrix(0,2);
 
-    // Orientation (Quaternion)
-    openvslam::Mat33_t rotation_matrix;
-    for(int row=0; row<3; row++){
-        for(int col=0; col<3; col++){
-            rotation_matrix(row,col) = raw_matrix(row,col);
-        }
-    }
-    openvslam::Quat_t temp_quaternion(rotation_matrix);
-    out.pose.orientation.x = temp_quaternion.x();
-    out.pose.orientation.y = temp_quaternion.y();
-    out.pose.orientation.z = temp_quaternion.z();
-    out.pose.orientation.w = temp_quaternion.w();
-    if(out.pose.orientation.w < 0){
-        out.pose.orientation.x *= -1; 
-        out.pose.orientation.y *= -1;
-        out.pose.orientation.z *= -1;
-        out.pose.orientation.w *= -1;
-    }
-    out.header = header;
-}
-*/
 void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::string& vocab_file_path,
                    const std::string& mask_img_path, const bool eval_log, const std::string& map_db_path) {
     // load the mask image
@@ -90,6 +62,7 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
     header.stamp.sec = 0;                // Start Seconds
     header.stamp.nsec = 0;              // Start nano seconds
     header.frame_id = "/camera_pose";
+
     // initialize this node
     ros::NodeHandle nh;
 
@@ -104,11 +77,14 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
 
         // input the current frame and estimate the camera pose
         auto pose = SLAM.feed_monocular_frame(cv_bridge::toCvShare(msg, "bgr8")->image, timestamp, mask);
-        // std::cout << pose << std::endl;
+
         geometry_msgs::PoseStamped pose_msg;
+
+        // Header time stamping
         auto now = std::chrono::high_resolution_clock::now().time_since_epoch(); 
         header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(now-current_time).count();
         header.stamp.nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(now-current_time).count();
+
         PoseGen::generate_pose_msg(pose, header, pose_msg);
         pose_publisher.publish(pose_msg);
         header.seq++;

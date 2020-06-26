@@ -13,12 +13,13 @@ namespace PoseGen{
 
         // Orientation (Quaternion)
         openvslam::Mat33_t rotation_matrix;
+        // Creating the rotation matrix 
         for(int row=0; row<3; row++){
             for(int col=0; col<3; col++){
                 rotation_matrix(row,col) = raw_matrix(row,col);
             }
         }
-        openvslam::Quat_t temp_quaternion(rotation_matrix);
+        openvslam::Quat_t temp_quaternion(rotation_matrix); // The rotation matrix is automatically converted to a Quaternion through this object
         out.pose.orientation.x = temp_quaternion.x();
         out.pose.orientation.y = temp_quaternion.y();
         out.pose.orientation.z = temp_quaternion.z();
