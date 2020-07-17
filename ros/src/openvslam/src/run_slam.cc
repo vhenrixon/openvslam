@@ -57,7 +57,7 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
 
     // Header message properties
     std_msgs::Header header; 
-    auto current_time = std::chrono::high_resolution_clock::now().time_since_epoch(); 
+ 
     header.seq = 0;                        // Start Sequence 
     header.stamp.sec = 0;                // Start Seconds
     header.stamp.nsec = 0;              // Start nano seconds
@@ -82,8 +82,8 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
 
         // Header time stamping
         auto now = std::chrono::high_resolution_clock::now().time_since_epoch(); 
-        header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(now-current_time).count();
-        header.stamp.nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(now-current_time).count();
+        header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(now).count();
+        header.stamp.nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
 
         PoseGen::generate_pose_msg(pose, header, pose_msg);
         pose_publisher.publish(pose_msg);

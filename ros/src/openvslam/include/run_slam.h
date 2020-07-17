@@ -5,8 +5,9 @@
 #include "std_msgs/Header.h"
 
 namespace PoseGen{
+    // This function generates a pose message for ros based on the a raw translation matrix 
     void generate_pose_msg(openvslam::Mat44_t& raw_matrix, std_msgs::Header& header, geometry_msgs::PoseStamped& out){
-            // Positional (Point)
+        // Positional (Point)
         out.pose.position.x = raw_matrix(0,3);
         out.pose.position.y = raw_matrix(1,3);
         out.pose.position.z = raw_matrix(2,3);
