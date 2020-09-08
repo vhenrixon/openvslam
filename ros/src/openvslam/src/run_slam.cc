@@ -57,7 +57,6 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
 
     // Header message properties
     std_msgs::Header header; 
- 
     header.seq = 0;                        // Start Sequence 
     header.stamp.sec = 0;                // Start Seconds
     header.stamp.nsec = 0;              // Start nano seconds
@@ -67,7 +66,7 @@ void mono_tracking(const std::shared_ptr<openvslam::config>& cfg, const std::str
     ros::NodeHandle nh;
 
     // Publisher
-    ros::Publisher pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("/camera_pose", 5);
+    ros::Publisher pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("/camera_pose", 1000);
 
     image_transport::ImageTransport it(nh);
     // run the SLAM as subscriber
